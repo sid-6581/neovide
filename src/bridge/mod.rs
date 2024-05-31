@@ -36,7 +36,7 @@ pub use ui_commands::{send_ui, start_ui_command_handler, ParallelCommand, Serial
 const NEOVIM_REQUIRED_VERSION: &str = "0.10.0";
 
 pub struct NeovimRuntime {
-    runtime: Runtime,
+    runtime: Option<Runtime>,
 }
 
 fn neovim_instance() -> Result<NeovimInstance> {
@@ -159,7 +159,9 @@ impl NeovimRuntime {
     pub fn new() -> Result<Self, Error> {
         let runtime = Builder::new_multi_thread().enable_all().build()?;
 
-        Ok(Self { runtime })
+        Ok(Self {
+            runtime: Some(runtime),
+        })
     }
 
     pub fn launch(
@@ -168,8 +170,21 @@ impl NeovimRuntime {
         grid_size: Option<GridSize<u32>>,
     ) -> Result<()> {
         let handler = start_editor(event_loop_proxy.clone());
-        let session = self.runtime.block_on(launch(handler, grid_size))?;
-        self.runtime.spawn(run(session, event_loop_proxy));
+        let session = self
+            .runtime
+            .as_ref()
+            .unwrap()
+            .block_on(launch(handler, grid_size))?;
+        self.runtime
+            .as_ref()
+            .unwrap()
+            .spawn(run(session, event_loop_proxy));
         Ok(())
+    }
+}
+
+impl Drop for NeovimRuntime {
+    fn drop(&mut self) {
+        self.runtime.take().unwrap().shutdown_background();
     }
 }
