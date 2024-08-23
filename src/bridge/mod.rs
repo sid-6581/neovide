@@ -138,15 +138,7 @@ async fn run(session: NeovimSession, proxy: EventLoopProxy<UserEvent>) {
         // data.
         select! {
             _ = &mut session.io_handle => {}
-            _ = process.wait() => {
-                log::info!("The Neovim process quit before the IO stream, waiting two seconds");
-                if timeout(Duration::from_millis(2000), session.io_handle)
-                        .await
-                        .is_err()
-                {
-                    log::info!("The IO stream was never closed, forcing Neovide to exit");
-                }
-            }
+            _ = process.wait() => {}
         };
     } else {
         session.io_handle.await.ok();
